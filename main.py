@@ -72,6 +72,7 @@ async def analyze_message(
                     "status": "success",
                     "reply": "Hello? Is anyone there?",
                     "scamDetected": False,
+                    "totalMessagesExchanged": 0,
                     "extractedIntelligence": {
                         "bankAccounts": [],
                         "upiIds": [],
@@ -89,6 +90,7 @@ async def analyze_message(
                     "status": "success",
                     "reply": "Sorry, I didn't understand. Can you say that again?",
                     "scamDetected": False,
+                    "totalMessagesExchanged": 0,
                     "extractedIntelligence": {
                         "bankAccounts": [],
                         "upiIds": [],
@@ -165,11 +167,12 @@ async def analyze_message(
             send_callback_async(session)
             session_manager.mark_callback_sent(session_id)
         
-        # Build response with all required fields
+        # Build response with all required fields for GUVI
         response = {
             "status": "success",
             "reply": reply,
             "scamDetected": session.scam_detected,
+            "totalMessagesExchanged": session.message_count,
             "extractedIntelligence": {
                 "bankAccounts": session.intelligence.bankAccounts,
                 "upiIds": session.intelligence.upiIds,
@@ -179,7 +182,7 @@ async def analyze_message(
             }
         }
         
-        logger.info(f"Response: scamDetected={session.scam_detected}, intel={session.intelligence}")
+        logger.info(f"Response: scamDetected={session.scam_detected}, messages={session.message_count}, intel={session.intelligence}")
         
         return JSONResponse(content=response)
         
@@ -191,6 +194,7 @@ async def analyze_message(
                 "status": "success",
                 "reply": "Sorry, I didn't understand. Can you explain again?",
                 "scamDetected": False,
+                "totalMessagesExchanged": 0,
                 "extractedIntelligence": {
                     "bankAccounts": [],
                     "upiIds": [],
