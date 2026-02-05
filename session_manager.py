@@ -85,21 +85,19 @@ class SessionManager:
         if not session:
             return False
         
-        # Send callback if:
+        # Send callback on EVERY request when:
         # 1. Scam is detected
-        # 2. Callback hasn't been sent yet
-        # 3. We have some intelligence OR at least 3 messages exchanged
-        has_intelligence = (
+        # 2. We have some meaningful intelligence extracted
+        # This ensures GUVI always gets the LATEST accumulated data
+        has_meaningful_intelligence = (
             len(session.intelligence.bankAccounts) > 0 or
             len(session.intelligence.upiIds) > 0 or
-            len(session.intelligence.phishingLinks) > 0 or
             len(session.intelligence.phoneNumbers) > 0
         )
         
         return (
             session.scam_detected and 
-            not session.callback_sent and
-            (has_intelligence or session.message_count >= 3)
+            has_meaningful_intelligence
         )
     
     def clear_session(self, session_id: str):
