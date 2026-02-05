@@ -4,23 +4,49 @@ from models import ExtractedIntelligence
 
 def extract_bank_accounts(text: str) -> List[str]:
     """Extract potential bank account numbers (10-18 digits)."""
-    patterns = [
-        r'(?:account|a/c|ac)[\s:.-]*(\d{10,18})',  # After "account" keyword
-        r'\b(\d{10,18})\b',  # Generic account number
-        r'(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{0,6})',  # With separators
-    ]
-    accounts = []
-    for pattern in patterns:
-        matches = re.findall(pattern, text.lower())
-        for match in matches:
-            # Clean and validate
-            clean = re.sub(r'[-\s]', '', match)
-            if len(clean) >= 10 and len(clean) <= 18:
-                # Only exclude if EXACTLY 10 digits AND starts with 6-9 (phone number)
-                if len(clean) == 10 and clean[0] in '6789':
-                    continue  # Skip phone numbers
-                accounts.append(clean)
-    return list(set(accounts))
+    accounts = set()
+    
+    # Pattern 1: After "account" keyword with possible words in between
+    # e.g., "account number is 1234567890123456" or "account no: 123456789012"
+    account_keyword_pattern = r'(?:account|a/c|ac|acc)[\s]*(?:number|no|num|#)?[\s:.\-is]*(\d{10,18})'
+    matches = re.findall(account_keyword_pattern, text, re.IGNORECASE)
+    for match in matches:
+        clean = re.sub(r'[-\s]', '', match)
+        if 10 <= len(clean) <= 18:
+            accounts.add(clean)
+    
+    # Pattern 2: Number with separators (e.g., 1234-5678-9012-3456)
+    separator_pattern = r'(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{0,6})'
+    matches = re.findall(separator_pattern, text)
+    for match in matches:
+        clean = re.sub(r'[-\s]', '', match)
+        if 10 <= len(clean) <= 18:
+            # Skip if it looks like a phone number (10 digits starting with 6-9)
+            if len(clean) == 10 and clean[0] in '6789':
+                continue
+            accounts.add(clean)
+    
+    # Pattern 3: Standalone long numbers (11-18 digits to avoid phone numbers)
+    # These are more likely to be bank accounts
+    standalone_pattern = r'(?<!\d)(\d{11,18})(?!\d)'
+    matches = re.findall(standalone_pattern, text)
+    for match in matches:
+        accounts.add(match)
+    
+    # Pattern 4: Any 10-18 digit sequence that appears near financial keywords
+    financial_context = r'(?:transfer|send|pay|amount|rs|rupees|inr|₹).*?(\d{10,18})|(\d{10,18}).*?(?:transfer|send|pay|amount)'
+    matches = re.findall(financial_context, text, re.IGNORECASE)
+    for match_tuple in matches:
+        for match in match_tuple:
+            if match:
+                clean = re.sub(r'[-\s]', '', match)
+                if 10 <= len(clean) <= 18:
+                    # Skip phone numbers
+                    if len(clean) == 10 and clean[0] in '6789':
+                        continue
+                    accounts.add(clean)
+    
+    return list(accounts)
 
 def extract_upi_ids(text: str) -> List[str]:
     """Extract UPI IDs in format user@bank."""
