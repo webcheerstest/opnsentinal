@@ -1,15 +1,21 @@
 import re
+import logging
 from typing import List
 from models import ExtractedIntelligence
+
+logger = logging.getLogger(__name__)
 
 def extract_bank_accounts(text: str) -> List[str]:
     """Extract potential bank account numbers (10-18 digits)."""
     accounts = set()
     
+    logger.info(f"Extracting bank accounts from text: {text[:200]}...")
+    
     # Pattern 1: After "account" keyword with possible words in between
     # e.g., "account number is 1234567890123456" or "account no: 123456789012"
     account_keyword_pattern = r'(?:account|a/c|ac|acc)[\s]*(?:number|no|num|#)?[\s:.\-is]*(\d{10,18})'
     matches = re.findall(account_keyword_pattern, text, re.IGNORECASE)
+    logger.info(f"Pattern 1 (account keyword): {matches}")
     for match in matches:
         clean = re.sub(r'[-\s]', '', match)
         if 10 <= len(clean) <= 18:
@@ -18,6 +24,7 @@ def extract_bank_accounts(text: str) -> List[str]:
     # Pattern 2: Number with separators (e.g., 1234-5678-9012-3456)
     separator_pattern = r'(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{0,6})'
     matches = re.findall(separator_pattern, text)
+    logger.info(f"Pattern 2 (separators): {matches}")
     for match in matches:
         clean = re.sub(r'[-\s]', '', match)
         if 10 <= len(clean) <= 18:
@@ -30,12 +37,14 @@ def extract_bank_accounts(text: str) -> List[str]:
     # These are more likely to be bank accounts
     standalone_pattern = r'(?<!\d)(\d{11,18})(?!\d)'
     matches = re.findall(standalone_pattern, text)
+    logger.info(f"Pattern 3 (standalone 11-18): {matches}")
     for match in matches:
         accounts.add(match)
     
     # Pattern 4: Any 10-18 digit sequence that appears near financial keywords
     financial_context = r'(?:transfer|send|pay|amount|rs|rupees|inr|₹).*?(\d{10,18})|(\d{10,18}).*?(?:transfer|send|pay|amount)'
     matches = re.findall(financial_context, text, re.IGNORECASE)
+    logger.info(f"Pattern 4 (financial context): {matches}")
     for match_tuple in matches:
         for match in match_tuple:
             if match:
@@ -46,6 +55,14 @@ def extract_bank_accounts(text: str) -> List[str]:
                         continue
                     accounts.add(clean)
     
+    # Pattern 5: Simple fallback - any 16-digit number (most common bank account format)
+    simple_pattern = r'(\d{16})'
+    matches = re.findall(simple_pattern, text)
+    logger.info(f"Pattern 5 (simple 16-digit): {matches}")
+    for match in matches:
+        accounts.add(match)
+    
+    logger.info(f"Final extracted accounts: {list(accounts)}")
     return list(accounts)
 
 def extract_upi_ids(text: str) -> List[str]:
