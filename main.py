@@ -284,9 +284,8 @@ async def analyze_message(
             f"bank={len(session.intelligence.bankAccounts)}"
         )
 
-        # ── Callback to GUVI (once, when we have intelligence) ─────────
-        if session.scam_detected and session.has_intelligence() and not session.callback_sent:
-            session.callback_sent = True
+        # ── Callback to GUVI (every turn — always send latest data) ──────
+        if session.scam_detected and session.has_intelligence():
             send_callback_async(session)
 
         return JSONResponse(content=response)
