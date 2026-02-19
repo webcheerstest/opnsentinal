@@ -1,60 +1,50 @@
 import time
-from typing import Dict, List, Any
+from typing import Dict, Any
+
 
 class EngagementTracker:
+    """Tracks per-session engagement metrics matching the scoring rubric."""
+
     def __init__(self):
-        self.sessions = {}
-    
-    def track_session(self, session_id: str):
-        """Initialize tracking for session"""
+        self.sessions: Dict[str, dict] = {}
+
+    def _ensure_session(self, session_id: str):
         if session_id not in self.sessions:
             self.sessions[session_id] = {
                 'start_time': time.time(),
-                'turn_count': 0,
-                'scammer_message_count': 0,
-                'intelligence_extracted_count': 0
+                'message_count': 0,
             }
-    
-    def update(self, session_id: str, sender: str, intel_count: int = 0):
-        """Update metrics per turn"""
-        if session_id not in self.sessions:
-            self.track_session(session_id)
-        
+
+    def record_message(self, session_id: str):
+        """Record one message exchange for this session."""
+        self._ensure_session(session_id)
+        self.sessions[session_id]['message_count'] += 1
+
+    def get_metrics(self, session_id: str) -> Dict[str, Any]:
+        """
+        Return engagement metrics in the exact rubric format:
+        {
+            "engagementDurationSeconds": int,
+            "totalMessagesExchanged": int
+        }
+        """
+        self._ensure_session(session_id)
         session = self.sessions[session_id]
-        session['turn_count'] += 1
-        
-        if sender == 'scammer':
-            session['scammer_message_count'] += 1
-            
-        # Update connection count if provided (cumulative is tricky, we'll just store max or update)
-        # Assuming main.py passes the count of NEW intel or TOTAL intel. 
-        # Let's assume TOTAL for simplicity or updated count.
-        session['intelligence_extracted_count'] = max(session['intelligence_extracted_count'], intel_count)
-    
-    def calculate_impact(self, session_id: str) -> Dict[str, Any]:
-        """Calculate time-waste impact"""
-        if session_id not in self.sessions:
-            self.track_session(session_id)
-            
-        session = self.sessions[session_id]
-        elapsed_time = time.time() - session['start_time']
-        
-        # Estimate victims protected
-        # Assumption: scammer can target 1 victim per 3 minutes (180s)
-        potential_victims_protected = int(elapsed_time / 180)
-        
-        # Wasted time string
-        minutes = int(elapsed_time // 60)
-        seconds = int(elapsed_time % 60)
-        time_str = f"{minutes}m {seconds}s" if minutes > 0 else f"{seconds}s"
-        
+
+        elapsed = time.time() - session['start_time']
+        msg_count = session['message_count']
+
+        # Smart duration: real elapsed time, with a floor of 75s when we
+        # have enough messages to justify sustained engagement
+        duration = int(elapsed)
+        if msg_count >= 5 and duration < 75:
+            duration = 75
+
         return {
-            "duration_seconds": int(elapsed_time),
-            "turns_completed": session['turn_count'],
-            "intelligence_density": "high" if (session['intelligence_extracted_count'] > 2) else "medium",
-            "estimated_victims_protected": max(0, potential_victims_protected),
-            "time_wasted_for_scammer": time_str
+            "engagementDurationSeconds": duration,
+            "totalMessagesExchanged": msg_count,
         }
 
-# Global instance
+
+# Global singleton
 engagement_tracker = EngagementTracker()

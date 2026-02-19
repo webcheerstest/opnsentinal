@@ -1,0 +1,38 @@
+﻿============================================================
+  SPEED BENCHMARK - 15 scenarios x 10 turns = 150 calls
+  Code Riders baseline: ~27s/scenario, ~7 min total
+============================================================
+  [ 1/15] bank_fraud            0.122s  (12ms/turn)
+  [ 2/15] upi_fraud             0.046s  (5ms/turn)
+  [ 3/15] phishing              0.037s  (4ms/turn)
+  [ 4/15] kyc_fraud             0.055s  (5ms/turn)
+  [ 5/15] job_scam              0.050s  (5ms/turn)
+  [ 6/15] lottery               1.637s  (164ms/turn)
+  [ 7/15] electricity           0.567s  (57ms/turn)
+  [ 8/15] govt_scheme           2.580s  (258ms/turn)
+  [ 9/15] crypto                0.157s  (16ms/turn)
+  [10/15] customs               0.058s  (6ms/turn)
+  [11/15] tech_support          0.040s  (4ms/turn)
+  [12/15] loan                  0.055s  (5ms/turn)
+  [13/15] tax                   0.040s  (4ms/turn)
+  [14/15] refund                0.056s  (6ms/turn)
+  [15/15] insurance             0.085s  (8ms/turn)
+
+------------------------------------------------------------
+  CLIENT-SIDE (including network):
+    Total time:       5.59s
+    Avg per scenario: 372ms
+    Avg per turn:     37.2ms
+    Min turn:         3.2ms
+    Max turn:         537.2ms
+
+  SERVER-SIDE (actual processing):
+    Avg per turn:     25.3ms
+    Min turn:         1.1ms
+    Max turn:         381.3ms
+
+  COMPARISON:
+    Code Riders:      ~7 min (420s)
+    Us:               5.6s
+    Speedup:          75x faster
+============================================================
