@@ -105,7 +105,7 @@ class SessionManager:
             session.scam_type = scam_type
 
         if increment_messages:
-            session.message_count += 1
+            session.message_count += 2  # incoming + reply = 2 messages
 
         session.last_activity = datetime.now()
         return session
