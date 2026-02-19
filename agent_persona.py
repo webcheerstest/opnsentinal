@@ -13,17 +13,52 @@ from hinglish_dataset import HINGLISH_DB
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────
-# Merge English + Hinglish datasets into one combined pool
+# Keep English and Hinglish pools SEPARATE for language matching
 # ─────────────────────────────────────────────────────────────────────────
 
-COMBINED_DB = {}
-all_categories = set(list(RESPONSE_DB.keys()) + list(HINGLISH_DB.keys()))
-for cat in all_categories:
-    COMBINED_DB[cat] = {}
-    eng = RESPONSE_DB.get(cat, {})
-    hin = HINGLISH_DB.get(cat, {})
-    for phase in ["early", "middle", "late"]:
-        COMBINED_DB[cat][phase] = eng.get(phase, []) + hin.get(phase, [])
+# Hindi/Hinglish characters and common words for detection
+HINDI_MARKERS = set("अआइईउऊएऐओऔकखगघचछजझटठडढणतथदधनपफबभमयरलवशषसह")
+HINGLISH_WORDS = {
+    "hai", "hain", "nahi", "kya", "kaise", "kahan", "kaun", "kyun", "bhai",
+    "ji", "mera", "meri", "mere", "tera", "teri", "tere", "aapka", "aapki",
+    "yeh", "woh", "abhi", "bolo", "batao", "karo", "karna", "hona", "raha",
+    "rahi", "rahe", "toh", "bhi", "aur", "par", "lekin", "pehle", "baad",
+    "mein", "ko", "ka", "ki", "ke", "se", "pe", "ne", "sir", "madam",
+    "arrey", "theek", "accha", "haan", "nahin", "chahiye", "dijiye", "dena",
+    "lena", "jaana", "aana", "paisa", "rupee", "lakh", "crore", "sahib",
+    "beta", "beti", "bhai", "didi", "uncle", "aunty", "sahab",
+}
+
+
+def _detect_language(text: str) -> str:
+    """Detect if message is English or Hinglish based on content."""
+    # Check for Devanagari script
+    if any(c in HINDI_MARKERS for c in text):
+        return "hinglish"
+
+    # Check for common Hinglish words
+    words = set(text.lower().split())
+    hinglish_count = len(words & HINGLISH_WORDS)
+    if hinglish_count >= 2:
+        return "hinglish"
+
+    return "english"
+
+
+def _get_pool(category: str, phase: str, language: str) -> list:
+    """Get the response pool matching category, phase, and language."""
+    if language == "hinglish":
+        pool = HINGLISH_DB.get(category, {}).get(phase, [])
+        if pool:
+            return pool
+        # Fallback to English if Hinglish pool empty for this category
+        return RESPONSE_DB.get(category, {}).get(phase, [])
+    else:
+        pool = RESPONSE_DB.get(category, {}).get(phase, [])
+        if pool:
+            return pool
+        # Fallback to Hinglish if English pool empty
+        return HINGLISH_DB.get(category, {}).get(phase, [])
 
 # ─────────────────────────────────────────────────────────────────────────
 # Map scam types (from scam_detector.py) → response database categories
@@ -161,18 +196,18 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
     # 3. Determine conversation phase
     phase = _get_phase(turn_count)
 
-    # 4. Get response pool
-    category_data = COMBINED_DB.get(category, COMBINED_DB["general"])
-    pool = category_data.get(phase, category_data.get("middle", []))
+    # 4. Detect scammer's language and get matching pool
+    language = _detect_language(current_message)
+    pool = _get_pool(category, phase, language)
 
     if not pool:
-        pool = COMBINED_DB["general"]["middle"]
+        pool = _get_pool("general", "middle", language)
 
     response = random.choice(pool)
 
     logger.debug(
         f"Response selection: category={category}, phase={phase}, "
-        f"pool_size={len(pool)}, turn={turn_count}"
+        f"lang={language}, pool_size={len(pool)}, turn={turn_count}"
     )
 
     return response
@@ -180,4 +215,6 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
 
 def generate_confused_response(message: str) -> str:
     """Generate a confused/clarifying response for non-scam messages."""
-    return random.choice(COMBINED_DB["general"]["early"])
+    language = _detect_language(message)
+    return random.choice(_get_pool("general", "early", language))
+
