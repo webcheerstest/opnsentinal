@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 class Message(BaseModel):
     sender: str = ""
     text: str = ""
-    timestamp: Optional[int] = 0
+    timestamp: Any = 0  # Accept int (epoch) or str (ISO format)
 
 
 class Metadata(BaseModel):
@@ -27,6 +27,9 @@ class ExtractedIntelligence(BaseModel):
     upiIds: List[str] = []
     phishingLinks: List[str] = []
     emailAddresses: List[str] = []
+    caseIds: List[str] = []
+    policyNumbers: List[str] = []
+    orderNumbers: List[str] = []
 
 
 class EngagementMetrics(BaseModel):
@@ -38,7 +41,10 @@ class AnalyzeResponse(BaseModel):
     sessionId: str
     status: str = "success"
     scamDetected: bool = True
+    scamType: Optional[str] = None
+    confidenceLevel: float = 0.85
     totalMessagesExchanged: int = 0
+    engagementDurationSeconds: int = 0
     extractedIntelligence: ExtractedIntelligence = Field(default_factory=ExtractedIntelligence)
     engagementMetrics: EngagementMetrics = Field(default_factory=EngagementMetrics)
     agentNotes: str = ""

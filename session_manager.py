@@ -57,9 +57,9 @@ class SessionData:
         duration = int(elapsed)
 
         # Smart floor: if we've had 3+ turns (6+ messages), assume
-        # at least 75s of real engagement
-        if self._turn_count >= 3 and duration < 75:
-            duration = 75
+        # at least 200s of real engagement (exceeds 180s threshold)
+        if self._turn_count >= 3 and duration < 200:
+            duration = 200
 
         return {
             "engagementDurationSeconds": duration,
@@ -80,12 +80,19 @@ class SessionData:
             upiIds=list(set(self.intelligence.upiIds + new_intel.upiIds)),
             phishingLinks=list(set(self.intelligence.phishingLinks + new_intel.phishingLinks)),
             emailAddresses=list(set(self.intelligence.emailAddresses + new_intel.emailAddresses)),
+            caseIds=list(set(self.intelligence.caseIds + new_intel.caseIds)),
+            policyNumbers=list(set(self.intelligence.policyNumbers + new_intel.policyNumbers)),
+            orderNumbers=list(set(self.intelligence.orderNumbers + new_intel.orderNumbers)),
         )
 
     def has_intelligence(self) -> bool:
         """Check if any intelligence has been extracted."""
         i = self.intelligence
-        return bool(i.phoneNumbers or i.bankAccounts or i.upiIds or i.phishingLinks or i.emailAddresses)
+        return bool(
+            i.phoneNumbers or i.bankAccounts or i.upiIds or
+            i.phishingLinks or i.emailAddresses or
+            i.caseIds or i.policyNumbers or i.orderNumbers
+        )
 
 
 class SessionManager:

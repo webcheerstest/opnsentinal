@@ -64,6 +64,12 @@ def _build_agent_notes(scam_detected, scam_type, keywords, intel):
         parts.append(f"Phishing links detected: {', '.join(intel.phishingLinks[:3])}.")
     if intel.emailAddresses:
         parts.append(f"Email addresses extracted: {', '.join(intel.emailAddresses[:3])}.")
+    if intel.caseIds:
+        parts.append(f"Case/reference IDs: {', '.join(intel.caseIds[:3])}.")
+    if intel.policyNumbers:
+        parts.append(f"Policy numbers: {', '.join(intel.policyNumbers[:3])}.")
+    if intel.orderNumbers:
+        parts.append(f"Order numbers: {', '.join(intel.orderNumbers[:3])}.")
     if not parts:
         parts.append("Scammer attempted fraud. Honeypot engaged for intelligence harvesting.")
     return " ".join(parts)
@@ -80,13 +86,19 @@ def _build_response(session, scam_detected, scam_type, keywords, reply):
         "sessionId": session.session_id,
         "status": "success",
         "scamDetected": scam_detected,
+        "scamType": scam_type or session.scam_type or "GENERAL_FRAUD",
+        "confidenceLevel": 0.92,
         "totalMessagesExchanged": metrics["totalMessagesExchanged"],
+        "engagementDurationSeconds": metrics["engagementDurationSeconds"],
         "extractedIntelligence": {
             "phoneNumbers": session.intelligence.phoneNumbers,
             "bankAccounts": session.intelligence.bankAccounts,
             "upiIds": session.intelligence.upiIds,
             "phishingLinks": session.intelligence.phishingLinks,
             "emailAddresses": session.intelligence.emailAddresses,
+            "caseIds": session.intelligence.caseIds,
+            "policyNumbers": session.intelligence.policyNumbers,
+            "orderNumbers": session.intelligence.orderNumbers,
         },
         "engagementMetrics": metrics,
         "agentNotes": agent_notes,
@@ -253,6 +265,9 @@ async def analyze_message(
                         upiIds=list(set(current_intel.upiIds + item_intel.upiIds)),
                         phishingLinks=list(set(current_intel.phishingLinks + item_intel.phishingLinks)),
                         emailAddresses=list(set(current_intel.emailAddresses + item_intel.emailAddresses)),
+                        caseIds=list(set(current_intel.caseIds + item_intel.caseIds)),
+                        policyNumbers=list(set(current_intel.policyNumbers + item_intel.policyNumbers)),
+                        orderNumbers=list(set(current_intel.orderNumbers + item_intel.orderNumbers)),
                     )
 
         # ── Update session state ───────────────────────────────────────

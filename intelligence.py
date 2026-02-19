@@ -41,6 +41,27 @@ EMAIL_PATTERN = re.compile(
 # Phishing links: http/https URLs
 URL_PATTERN = re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+')
 
+# Case/Reference IDs: REF-2024-123, Case #12345, FIR-123, etc.
+CASE_ID_PATTERN = re.compile(
+    r'(?:case|ref|reference|fir|complaint|ticket|incident)[\s#:_-]*'
+    r'([A-Z0-9][A-Z0-9\-_]{2,20})',
+    re.IGNORECASE
+)
+
+# Policy numbers: LIC-987654, Policy: 123456, etc.
+POLICY_PATTERN = re.compile(
+    r'(?:policy|insurance|lic|plan)[\s#:_-]*'
+    r'([A-Z0-9][A-Z0-9\-_]{3,20})',
+    re.IGNORECASE
+)
+
+# Order numbers: AMZ-12345, Order #123, etc.
+ORDER_PATTERN = re.compile(
+    r'(?:order|transaction|txn|invoice|shipment|tracking)[\s#:_-]*'
+    r'([A-Z0-9][A-Z0-9\-_]{3,20})',
+    re.IGNORECASE
+)
+
 
 # ── Extractors ─────────────────────────────────────────────────────────
 
@@ -97,6 +118,21 @@ def extract_email_addresses(text: str) -> List[str]:
     return list(all_emails - upi_ids)
 
 
+def extract_case_ids(text: str) -> List[str]:
+    """Extract case/reference IDs."""
+    return list(set(CASE_ID_PATTERN.findall(text)))
+
+
+def extract_policy_numbers(text: str) -> List[str]:
+    """Extract policy/insurance numbers."""
+    return list(set(POLICY_PATTERN.findall(text)))
+
+
+def extract_order_numbers(text: str) -> List[str]:
+    """Extract order/transaction numbers."""
+    return list(set(ORDER_PATTERN.findall(text)))
+
+
 def extract_all_intelligence(text: str) -> ExtractedIntelligence:
     """Extract all intelligence from a single message."""
     return ExtractedIntelligence(
@@ -105,4 +141,7 @@ def extract_all_intelligence(text: str) -> ExtractedIntelligence:
         upiIds=extract_upi_ids(text),
         phishingLinks=extract_phishing_links(text),
         emailAddresses=extract_email_addresses(text),
+        caseIds=extract_case_ids(text),
+        policyNumbers=extract_policy_numbers(text),
+        orderNumbers=extract_order_numbers(text),
     )
