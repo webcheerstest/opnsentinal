@@ -50,29 +50,66 @@ async def add_process_time_header(request: Request, call_next):
 def _build_agent_notes(scam_detected, scam_type, keywords, intel):
     """Build a descriptive agent notes string."""
     parts = []
+
     if scam_detected:
-        parts.append(f"Scam detected: {scam_type or 'GENERAL_FRAUD'}.")
-    if keywords:
-        parts.append(f"Keywords: {', '.join(keywords[:8])}.")
-    if intel.phoneNumbers:
-        parts.append(f"Phone numbers extracted: {', '.join(intel.phoneNumbers[:3])}.")
-    if intel.bankAccounts:
-        parts.append(f"Bank accounts extracted: {', '.join(intel.bankAccounts[:3])}.")
-    if intel.upiIds:
-        parts.append(f"UPI IDs extracted: {', '.join(intel.upiIds[:3])}.")
-    if intel.phishingLinks:
-        parts.append(f"Phishing links detected: {', '.join(intel.phishingLinks[:3])}.")
-    if intel.emailAddresses:
-        parts.append(f"Email addresses extracted: {', '.join(intel.emailAddresses[:3])}.")
-    if intel.caseIds:
-        parts.append(f"Case/reference IDs: {', '.join(intel.caseIds[:3])}.")
-    if intel.policyNumbers:
-        parts.append(f"Policy numbers: {', '.join(intel.policyNumbers[:3])}.")
-    if intel.orderNumbers:
-        parts.append(f"Order numbers: {', '.join(intel.orderNumbers[:3])}.")
-    if not parts:
-        parts.append("Scammer attempted fraud. Honeypot engaged for intelligence harvesting.")
-    return " ".join(parts)
+        parts.append(f"Scam Type: {scam_type or 'GENERAL_FRAUD'}")
+
+        # Tactics identified
+        tactics = []
+        kw_set = set(k.lower() for k in keywords) if keywords else set()
+        if kw_set & {"urgent", "immediately", "blocked", "suspended"}:
+            tactics.append("Urgency/Fear")
+        if kw_set & {"otp", "pin", "cvv"}:
+            tactics.append("Credential Theft")
+        if kw_set & {"kyc", "verify", "verification", "update"}:
+            tactics.append("KYC Impersonation")
+        if kw_set & {"won", "winner", "prize", "lottery", "reward"}:
+            tactics.append("Prize Bait")
+        if kw_set & {"invest", "profit", "returns", "bitcoin"}:
+            tactics.append("Investment Fraud")
+        if kw_set & {"bank", "account", "transfer"}:
+            tactics.append("Banking Fraud")
+        if kw_set & {"contains_url"}:
+            tactics.append("Phishing Link")
+        if not tactics:
+            tactics.append("Social Engineering")
+        parts.append(f"Tactics: {', '.join(tactics)}")
+
+        # Intelligence summary
+        intel_items = []
+        if intel.phoneNumbers:
+            intel_items.append(f"{len(intel.phoneNumbers)} phone(s)")
+        if intel.bankAccounts:
+            intel_items.append(f"{len(intel.bankAccounts)} bank account(s)")
+        if intel.upiIds:
+            intel_items.append(f"{len(intel.upiIds)} UPI ID(s)")
+        if intel.phishingLinks:
+            intel_items.append(f"{len(intel.phishingLinks)} phishing link(s)")
+        if intel.emailAddresses:
+            intel_items.append(f"{len(intel.emailAddresses)} email(s)")
+        if intel_items:
+            parts.append(f"Intelligence: {', '.join(intel_items)}")
+
+        # Red flags
+        red_flags = []
+        if kw_set & {"urgent", "immediately", "now"}:
+            red_flags.append("Artificial urgency")
+        if kw_set & {"blocked", "suspended", "deactivated"}:
+            red_flags.append("Account threat")
+        if kw_set & {"otp", "pin", "cvv", "password"}:
+            red_flags.append("Credential request")
+        if kw_set & {"contains_url"}:
+            red_flags.append("Suspicious URL shared")
+        if red_flags:
+            parts.append(f"Red Flags: {', '.join(red_flags)}")
+
+        if keywords:
+            parts.append(f"Keywords: {', '.join(keywords[:8])}")
+    else:
+        parts.append("No scam detected yet")
+        parts.append("Monitoring conversation for suspicious activity")
+
+    return " | ".join(parts)
 
 
 def _build_response(session, scam_detected, scam_type, keywords, reply):

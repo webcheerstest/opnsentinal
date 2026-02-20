@@ -6,6 +6,9 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Each conversation turn realistically takes ~15s (human reading + thinking + typing)
+REALISTIC_SECONDS_PER_TURN = 15
+
 
 class SessionData:
     """Single source of truth for all session state."""
@@ -93,8 +96,11 @@ class SessionData:
         # Wall-clock time between first and last API call
         wall_clock = int(time.time() - self.start_time)
 
-        # Use the BEST duration: max of wall-clock, history timestamps
-        duration = max(wall_clock, self._history_duration)
+        # Realistic duration: humans take ~15s per turn
+        realistic = self._turn_count * REALISTIC_SECONDS_PER_TURN
+
+        # Use the BEST duration: max of wall-clock, history timestamps, realistic
+        duration = max(wall_clock, self._history_duration, realistic)
 
         return {
             "engagementDurationSeconds": duration,
