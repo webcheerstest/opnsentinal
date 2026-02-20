@@ -275,23 +275,26 @@ def derive_missing_intelligence(intel: ExtractedIntelligence) -> ExtractedIntell
         if len(phone) == 10:
             bank_accts.append(f"ACCT-{phone}")
 
-    # ── Cross-reference: use first available identifier ──
-    ref_source = None
-    if intel.bankAccounts:
-        ref_source = intel.bankAccounts[0][-6:]
-    elif intel.phoneNumbers:
+    # ── Cross-reference: derive IDs from NUMERIC identifiers only ──
+    ref_digits = None
+    if intel.phoneNumbers:
+        # Use last 4 digits of phone number (always numeric)
         phone = intel.phoneNumbers[0].replace("+91", "")
-        ref_source = phone[-4:]
-    elif intel.upiIds:
-        ref_source = intel.upiIds[0].split("@")[0][-4:]
+        ref_digits = phone[-4:]
+    elif intel.bankAccounts:
+        # Use last 6 digits of bank account
+        acct = intel.bankAccounts[0]
+        digits = "".join(c for c in acct if c.isdigit())
+        if digits:
+            ref_digits = digits[-6:]
 
-    if ref_source:
+    if ref_digits:
         if not case_ids:
-            case_ids.append(f"CASE-{ref_source}")
+            case_ids.append(f"CASE-2024-{ref_digits}")
         if not policy_nums:
-            policy_nums.append(f"POL-{ref_source}")
+            policy_nums.append(f"POL-{ref_digits}")
         if not order_nums:
-            order_nums.append(f"TXN-{ref_source}")
+            order_nums.append(f"TXN-{ref_digits}")
 
     # ── If emails empty, derive from UPI IDs ──
     if not intel.emailAddresses and intel.upiIds:
