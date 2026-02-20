@@ -175,11 +175,13 @@ def _detect_red_flag(text: str) -> str:
     t = text.lower()
     if any(w in t for w in ["otp", "pin", "cvv", "password"]):
         return "Requesting sensitive credentials (OTP/PIN/CVV) — legitimate banks never ask for these"
+    if any(w in t for w in ["account number", "card number", "16-digit", "debit card", "credit card"]):
+        return "Requesting account/card number — legitimate banks already have this on file"
     if any(w in t for w in ["blocked", "suspended", "deactivated", "frozen"]):
         return "Account threat/pressure tactic — creating urgency to bypass rational thinking"
-    if any(w in t for w in ["urgent", "immediately", "right now", "within 2 hours"]):
+    if any(w in t for w in ["urgent", "immediately", "right now", "right away", "within 2 hours", "last chance"]):
         return "Artificial time pressure — scammers create urgency to prevent verification"
-    if any(w in t for w in ["arrest", "police", "legal", "fir", "warrant"]):
+    if any(w in t for w in ["arrest", "police", "legal", "fir", "warrant", "court order"]):
         return "Legal intimidation — fake authority threats to coerce compliance"
     if any(w in t for w in ["won", "winner", "prize", "lottery", "reward"]):
         return "Unsolicited prize — classic advance-fee fraud pattern"
@@ -187,12 +189,18 @@ def _detect_red_flag(text: str) -> str:
         return "Guaranteed returns promise — no legitimate investment guarantees profits"
     if any(w in t for w in ["http", "www", "click", "link"]):
         return "Suspicious URL shared — potential phishing link to steal credentials"
-    if any(w in t for w in ["kyc", "verify", "update your"]):
-        return "KYC verification request via phone/message — banks do KYC in-branch only"
-    if any(w in t for w in ["transfer", "send money", "pay", "fee", "charge"]):
+    if any(w in t for w in ["kyc", "update your", "verify your", "verification required"]):
+        return "KYC/verification request via phone/message — banks do KYC in-branch only"
+    if any(w in t for w in ["transfer", "send money", "pay", "fee", "charge", "penalty"]):
         return "Requesting money transfer — legitimate services don't ask for upfront payments this way"
     if any(w in t for w in ["whatsapp", "telegram", "personal number"]):
         return "Moving to personal messaging — attempting to evade official communication channels"
+    if any(w in t for w in ["reply", "confirm", "submit", "provide", "share your"]):
+        return "Requesting personal information via unsecured channel — potential social engineering"
+    if any(w in t for w in ["refund", "cashback", "compensation"]):
+        return "Refund bait — creating false hope to extract banking credentials"
+    if any(w in t for w in ["final", "warning", "terminat", "cancel"]):
+        return "Escalation threat — increasing pressure to force immediate compliance"
     return ""
 
 
@@ -278,5 +286,14 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
 def generate_confused_response(message: str) -> str:
     """Generate a confused/clarifying response for non-scam messages."""
     language = _detect_language(message)
-    return random.choice(_get_pool("general", "early", language))
+    response = random.choice(_get_pool("general", "early", language))
+    # Even for non-scam messages, add a gentle probing question
+    probe = random.choice([
+        "By the way, who is this? What is your name and where are you calling from?",
+        "Sorry, I didn't catch your name. Who are you and which company?",
+        "Can you tell me your name, your phone number, and which organization you represent?",
+        "Who gave you my number? What is your official email ID?",
+        "I don't recognize this number. What is your name and employee ID?",
+    ])
+    return f"{response} {probe}"
 

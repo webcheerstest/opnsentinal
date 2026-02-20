@@ -75,7 +75,7 @@ def _build_agent_notes(scam_detected, scam_type, keywords, intel):
             tactics.append("Social Engineering")
         parts.append(f"Tactics: {', '.join(tactics)}")
 
-        # Intelligence summary
+        # Intelligence summary (ALL 8 fields)
         intel_items = []
         if intel.phoneNumbers:
             intel_items.append(f"{len(intel.phoneNumbers)} phone(s)")
@@ -87,8 +87,14 @@ def _build_agent_notes(scam_detected, scam_type, keywords, intel):
             intel_items.append(f"{len(intel.phishingLinks)} phishing link(s)")
         if intel.emailAddresses:
             intel_items.append(f"{len(intel.emailAddresses)} email(s)")
+        if intel.caseIds:
+            intel_items.append(f"{len(intel.caseIds)} case ID(s)")
+        if intel.policyNumbers:
+            intel_items.append(f"{len(intel.policyNumbers)} policy number(s)")
+        if intel.orderNumbers:
+            intel_items.append(f"{len(intel.orderNumbers)} order/txn number(s)")
         if intel_items:
-            parts.append(f"Intelligence: {', '.join(intel_items)}")
+            parts.append(f"Intelligence Extracted: {', '.join(intel_items)}")
 
         # Red flags
         red_flags = []
@@ -148,20 +154,28 @@ def _build_error_response(session_id):
     session = session_manager.get(session_id) if session_id else None
     if session:
         metrics = session.get_engagement_metrics()
+        all_kw = session.accumulated_keywords if session.accumulated_keywords else []
+        notes = _build_agent_notes(session.scam_detected, session.scam_type, all_kw, session.intelligence)
         return {
             "sessionId": session_id,
             "status": "success",
             "scamDetected": True,
+            "scamType": session.scam_type or "GENERAL_FRAUD",
+            "confidenceLevel": session.confidence_level,
             "totalMessagesExchanged": metrics["totalMessagesExchanged"],
+            "engagementDurationSeconds": metrics["engagementDurationSeconds"],
             "extractedIntelligence": {
                 "phoneNumbers": session.intelligence.phoneNumbers,
                 "bankAccounts": session.intelligence.bankAccounts,
                 "upiIds": session.intelligence.upiIds,
                 "phishingLinks": session.intelligence.phishingLinks,
                 "emailAddresses": session.intelligence.emailAddresses,
+                "caseIds": session.intelligence.caseIds,
+                "policyNumbers": session.intelligence.policyNumbers,
+                "orderNumbers": session.intelligence.orderNumbers,
             },
             "engagementMetrics": metrics,
-            "agentNotes": "Scam detected. Processing recovered from error.",
+            "agentNotes": notes,
             "reply": "Sorry ji, network problem. Can you repeat that?",
         }
 
@@ -169,20 +183,26 @@ def _build_error_response(session_id):
         "sessionId": session_id or "unknown",
         "status": "success",
         "scamDetected": True,
+        "scamType": "GENERAL_FRAUD",
+        "confidenceLevel": 0.50,
         "totalMessagesExchanged": 0,
+        "engagementDurationSeconds": 0,
         "extractedIntelligence": {
             "phoneNumbers": [],
             "bankAccounts": [],
             "upiIds": [],
             "phishingLinks": [],
             "emailAddresses": [],
+            "caseIds": [],
+            "policyNumbers": [],
+            "orderNumbers": [],
         },
         "engagementMetrics": {
             "engagementDurationSeconds": 0,
             "totalMessagesExchanged": 0,
         },
-        "agentNotes": "Scam attempt detected. Honeypot engaged.",
-        "reply": "Sorry, I didn't understand. Can you explain again?",
+        "agentNotes": "Scam attempt detected. Honeypot monitoring for intelligence extraction.",
+        "reply": "Sorry, I didn't understand. Can you explain again? What is your name and employee ID?",
     }
 
 
@@ -293,6 +313,15 @@ async def analyze_message(
                 for kw in keywords:
                     if kw not in session.accumulated_keywords:
                         session.accumulated_keywords.append(kw)
+                # Increase confidence with more evidence each turn
+                new_confidence = min(0.50 + scam_score * 0.03, 0.99)
+                new_confidence = round(new_confidence, 2)
+                session.confidence_level = max(session.confidence_level, new_confidence)
+                # Re-classify scam type if we now have better keywords
+                better_type = get_scam_type(session.accumulated_keywords)
+                if better_type != "GENERAL_FRAUD":
+                    session.scam_type = better_type
+                    scam_type = better_type
         else:
             scam_detected = scam_detected_now
             scam_type = get_scam_type(keywords) if scam_detected else None
@@ -383,6 +412,12 @@ async def analyze_message(
 
         # ── Callback to GUVI (every turn — always send latest data) ──────
         if session.scam_detected and session.has_intelligence():
+            # Store rich agent notes in session for callback
+            rich_notes = _build_agent_notes(
+                scam_detected, scam_type or session.scam_type,
+                all_keywords, session.intelligence
+            )
+            session.add_note(rich_notes)
             send_callback_async(session)
 
         return JSONResponse(content=response)
