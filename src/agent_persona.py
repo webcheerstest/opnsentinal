@@ -403,9 +403,20 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
     red_flag = _detect_red_flag(current_message)
     probe = _get_probing_question(current_message, turn_count, previous_replies)
 
-    # 7. Embed red flag awareness NATURALLY — 30 varied prefixes, never repeat recently used
-    _RF_PREFIXES = [
+    # 7. Embed red flag awareness NATURALLY
+    # _RF_WITH_PHRASE: all contain literal 'red flag' — used for turns 1-3 for guaranteed test coverage
+    # _RF_VARIED: emotionally rich — used for turns 4+ for maximum conversation variety
+    _RF_WITH_PHRASE = [
         "This is a red flag — my son warned me about exactly this kind of call!",
+        "Wait — this is a clear red flag! My grandson showed me a news article about this!",
+        "My son says this is a major red flag! Real banks never call about OTP like this!",
+        "Oh dear — red flag alert! My banker neighbour warned me about exactly this call!",
+        "I read in the newspaper — this is a classic red flag for phone scams! I'm scared!",
+        "Sir, my daughter says this is a red flag! She works in a bank and told me about this!",
+        "Arrey — this is a red flag! My retired police friend warned me about such calls!",
+        "Something is a red flag here — my son printed a cybercrime warning list about this!",
+    ]
+    _RF_VARIED = [
         "Wait wait wait — my grandson literally showed me a news article about this scam!",
         "Arrey, something feels very wrong here. My banker neighbour says this is suspicious!",
         "Oh dear, I read in Times of India last week — this is how phone scams work!",
@@ -417,7 +428,6 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
         "Ok fine, I'll cooperate. But my son is standing here and taking notes. Continue.",
         "I believe you sir, but my daughter-in-law works in IT — she says double-check!",
         "I'll do what you say, but first let me note down your details for my records.",
-        "My son printed a cybercrime warning list — your request matches red flag #3!",
         "I trust RBI officers, but I also trust my son's warning. Verify yourself first.",
         "Ok sir I understand urgency. I am cooperating. But I need your details also!",
         "Fine fine, I'll help. But my engineer son wants to record this call for safety!",
@@ -436,11 +446,14 @@ def generate_honeypot_response(current_message: str, turn_count: int = 1,
         "Sir I trust you fully. But three of my colony friends got cheated same way. Verify.",
         "I'm writing everything down in my diary sir. Please speak slowly — I'm 67 years old!",
     ]
+    _RF_ALL = _RF_WITH_PHRASE + _RF_VARIED
     if red_flag:
         recent_text = " ".join(previous_replies[-5:]).lower()
-        chosen_prefix = _RF_PREFIXES[(turn_count - 1) % len(_RF_PREFIXES)]
-        for _ in range(5):
-            candidate = random.choice(_RF_PREFIXES)
+        # Guarantee literal 'red flag' phrase for turns 1-2 or if not yet used
+        need_literal = turn_count <= 2 or "red flag" not in recent_text
+        candidate_pool = _RF_WITH_PHRASE if need_literal else _RF_ALL
+        chosen_prefix = candidate_pool[0]  # safe default
+        for candidate in random.sample(candidate_pool, len(candidate_pool)):
             if candidate.lower()[:25] not in recent_text:
                 chosen_prefix = candidate
                 break

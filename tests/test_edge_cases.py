@@ -244,11 +244,14 @@ def test_red_flags_in_replies():
         "Pay Rs 5000 or face arrest",
     ]
 
+    # Root cause fix: use timestamp-unique session IDs so each test run
+    # starts fresh — sessions persist in-memory across runs on the same server
+    ts = int(time.time() * 1000)
     red_flag_count = 0
     for i, msg in enumerate(test_messages):
         d, code = post({
-            "sessionId": f"redflag-{i}",
-            "message": {"sender": "scammer", "text": msg, "timestamp": int(time.time() * 1000)},
+            "sessionId": f"redflag-{ts}-{i}",   # unique per run
+            "message": {"sender": "scammer", "text": msg, "timestamp": ts},
         })
         reply = d.get("reply", "").lower()
         has_rf = "red flag" in reply
@@ -282,7 +285,9 @@ def test_auth():
 def test_engagement_metrics():
     section("9. ENGAGEMENT METRICS ACCURACY")
 
-    session_id = "metrics-test"
+    # Root cause fix: use timestamp-unique session ID so each test run begins
+    # with zero message count — static 'metrics-test' ID accumulates across runs
+    session_id = f"metrics-test-{int(time.time() * 1000)}"
     for i in range(5):
         d, code = post({
             "sessionId": session_id,
